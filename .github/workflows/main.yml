@@ -1,4 +1,4 @@
-# G itHub Actions workflow for creating a new FoundryVTT module release.
+# GitHub Actions workflow for creating a new FoundryVTT module release.
 #
 # Useful References:
 #   - https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
