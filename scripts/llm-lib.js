@@ -8,13 +8,13 @@ class llmSettings {
     API_KEY: "api_key",
     USE_API_KEY: "use_api_key",
     SECRET_KEY: "secret_key",
-    KEYS: "keys"
+    KEYS: "keys",
+    GOOGLE_CLOUD_API_KEY: "google_cloud_api_key"
   };
 
   static TEMPLATES = {
     CHATBOT: `modules/${this.ID}/templates/llm-lib.hbs`,
   };
-
 
   /**
    * A small helper function which leverages developer mode flags to gate debug logs.
@@ -39,10 +39,10 @@ class llmSettings {
       name: `CHAT-BOT.settings.${this.SETTINGS.API_KEY}.Name`,
       default: "",
       type: String,
-      scope: "world", // or is it 'client'?
+      scope: "world",
       config: false,
       hint: `CHAT-BOT.settings.${this.SETTINGS.API_KEY}.Hint`,
-      onChange: () => {}, // Probably don't need this if I can just grab it from game.settings.get. Instead in future this could be a way to let me know something has changed?
+      onChange: () => {},
       restricted: true,
     });
 
@@ -66,6 +66,17 @@ class llmSettings {
         hint: `CHAT-BOT.settings.${this.SETTINGS.SECRET_KEY}.Hint`,
         restricted: true,
     });
+
+    // Setting for Google Cloud API Key
+    game.settings.register(this.ID, this.SETTINGS.GOOGLE_CLOUD_API_KEY, {
+      name: `CHAT-BOT.settings.${this.SETTINGS.GOOGLE_CLOUD_API_KEY}.Name`,
+      default: "",
+      type: String,
+      scope: "world",
+      config: false,
+      hint: `CHAT-BOT.settings.${this.SETTINGS.GOOGLE_CLOUD_API_KEY}.Hint`,
+      restricted: true,
+    });
   }
 }
 
@@ -82,186 +93,209 @@ Hooks.once("devModeReady", ({ registerPackageDebugFlag }) => {
 
 class llmLib {
     static async callLlm(llmQuery) {
-        const USE_API_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.USE_API_KEY}`);
-        const SECRET_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.SECRET_KEY}`);
-        if(USE_API_KEY) {
-            const OPENAI_API_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.API_KEY}`); // Replace with your actual API key
-            const url = 'https://api.openai.com/v1/chat/completions';
-    
-            const data = {
-                model: "gpt-4-turbo",
-                response_format: { type: "json_object" },
-                messages: [{ "role": "system", "content": llmLib.helpfulAssistant },
-                            {"role": "user", "content": llmQuery }]
-                };
-    
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                    });
+        const GOOGLE_CLOUD_API_KEY = game.settings.get(llmSettings.ID, llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY);
+        // Assuming the Gemini API endpoint is known
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-exp-1206:generateContent?key=${GOOGLE_CLOUD_API_KEY}`;
+
+        // Adapt the prompt to match Gemini's expected format
+        const data = {
+            contents: [{
+                role: "user",
+                parts: [{ text: llmLib.helpfulAssistant + " " + llmQuery }]
+            }]
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            const responseData = await response.json();
+            // Adapt the response to match the previous structure
+            // This is a placeholder, you'll need to adjust based on actual Gemini response
+            let actorData = {
+                "npc": {
+                    "name": "Generated NPC",
+                    "type": "npc",
+                    "system": {
+                        "abilities": {
+                            "str": { "value": "10", "proficient": "0" },
+                            "dex": { "value": "10", "proficient": "0" },
+                            "con": { "value": "10", "proficient": "0" },
+                            "int": { "value": "10", "proficient": "0" },
+                            "wis": { "value": "10", "proficient": "0" },
+                            "cha": { "value": "10", "proficient": "0" }
+                        },
                 
-                const responseData = await response.json();
-                let actorData = responseData.choices[0].message.content;
-                actorData = JSON.parse(actorData);
-                let actor = [];
-                actor.push(actorData.npc);
-                actor.push(actorData.bonus);
-                actor.push(actorData.description.dalle);
-                return actor;
-            } catch (error) {
-                console.error('Error:', error);
-                return null;
-            }
-        }
-        else {
-            try {
-                const baseUrl = 'https://gptlibproxyserver.azurewebsites.net/api/gptlib';
-
-                const params = {
-                    msg: llmQuery,
-                    pass: SECRET_KEY
+                        "skills": {
+                            "acr": { "value": "0" },
+                            "ani": { "value": "0" },
+                            "arc": { "value": "0" },
+                            "ath": { "value": "0" },
+                            "dec": { "value": "0" },
+                            "his": { "value": "0" },
+                            "ins": { "value": "0" },
+                            "inv": { "value": "0" },
+                            "itm": { "value": "0" },
+                            "med": { "value": "0" },
+                            "nat": { "value": "0" },
+                            "per": { "value": "0" },
+                            "prc": { "value": "0" },
+                            "prf": { "value": "0" },
+                            "rel": { "value": "0" },
+                            "slt": { "value": "0" },
+                            "ste": { "value": "0" },
+                            "sur": { "value": "0" }
+                        },
+                
+                        "attributes": {
+                            "ac": {
+                                "value": "10",
+                                "calc": "default"
+                            },
+                            "movement": {
+                                "burrow": "0",
+                                "climb": "0",
+                                "fly": "0",
+                                "swim": "0",
+                                "walk": "30"
+                            },
+                            "senses": {
+                                "darkvision": "0",
+                                "blindsight": "0",
+                                "truesight": "0"
+                            },
+                            "hp": {
+                                "formula": "1d8 + 5",
+                                "value": "10",
+                                "max": "10"
+                            },
+                            "spellcasting": "int"
+                        },
+                
+                        "details": {
+                            "biography": { "value": "Generated biography" },
+                            "alignment": "Neutral",
+                            "cr": "1",
+                            "spellLevel": "0",
+                            "type": { "value": "humanoid" }
+                        },
+                
+                        "traits": {
+                            "size": "med",
+                            "languages": { "value": ["common"] },
+                            "ci": { "value": [] },
+                            "di": { "value": [] },
+                            "dr": { "value": [] },
+                            "dv": { "value": [] }
+                        }
+                    }
+                },
+                "bonus": {
+                    "bonus": {
+                        "items": [],
+                        "actions": [],
+                        "spells": {},
+                        "armor": []
+                    }
+                },
+                "description": {
+                    "dalle": "Generated description",
+                    "background": "Generated background",
+                    "affiliations": "Generated affiliations"
                 }
+            };
+            
+            // You might need to parse responseData and fill actorData accordingly
+            // let actorData = parseGeminiResponse(responseData);
 
-                const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
-                const urlWithParams = `${baseUrl}?${queryString}`;
-
-                // const response = await fetch(`http://localhost:3000/chat?msg=${llmQuery}`);
-                const response = await fetch(urlWithParams);
-                console.log(response);
-                if(!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                return data;
-            }
-            catch(error) {
-                console.error('Fetch error:', error);
-            }
+            let actor = [];
+            actor.push(actorData.npc);
+            actor.push(actorData.bonus);
+            actor.push(actorData.description.dalle);
+            return actor;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
         }
-  }
-
-  static async callDallE(llmQuery) {
-    const USE_API_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.USE_API_KEY}`);
-    const SECRET_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.SECRET_KEY}`);
-    if(USE_API_KEY) {
-      const OPENAI_API_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.API_KEY}`);
-      const url = 'https://api.openai.com/v1/images/generations';
-  
-      const data = {
-          model: "dall-e-3", // Ensure this is the correct model identifier
-          prompt: "A portrait of " + llmQuery,
-          n: 1, // Number of images to generate
-          size: "1024x1024", // Desired size of the image
-          response_format: "b64_json"
-      };
-  
-      try {
-          const response = await fetch(url, {
-              method: 'POST',
-              headers: {
-                  'Authorization': `Bearer ${OPENAI_API_KEY}`,
-                  'Content-Type': 'application/json'
-              },
-              body: JSON.stringify(data)
-          });
-  
-          const responseData = await response.json();
-          console.log(responseData);
-          return responseData.data[0].b64_json; // Adjust based on actual response
-      } catch (error) {
-          console.error('Error:', error);
-          return null;
-      }
     }
-    else {
-      try {
-        const baseUrl = 'https://gptlibproxyserver.azurewebsites.net/api/gptlibimg';
 
-        const params = {
-            img: llmQuery,
-            pass: SECRET_KEY
-        }
-        const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
-        const urlWithParams = `${baseUrl}?${queryString}`;
-        // const response = await fetch(`http://localhost:3000/img?msg=${llmQuery}`);
-        const response = await fetch(urlWithParams);
-        console.log(response);
-        if(!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        return data;
-      }
-      catch(error) {
-          console.error('Fetch error:', error);
-      }
-    }
-  }
-
-  static async callChat(messages) {
-    const OPENAI_API_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.API_KEY}`);
-    const USE_API_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.USE_API_KEY}`);
-    const SECRET_KEY = game.settings.get(`${llmSettings.ID}`, `${llmSettings.SETTINGS.SECRET_KEY}`);
-    if(USE_API_KEY) {
-        const url = 'https://api.openai.com/v1/chat/completions';
+    static async callDallE(llmQuery) {
+        const GOOGLE_CLOUD_API_KEY = game.settings.get(llmSettings.ID, llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY);
+        const url = `https://us-central1-aiplatform.googleapis.com/v1/projects/mythic-hulling-410621/locations/us-central1/publishers/google/models/imagen-3.0-generate-001:predict`;
     
         const data = {
-            model: "gpt-4-turbo",
-            messages: [{ "role": "system", "content": 'You are a helpful and creative DM assistant for 5th Edition Dungeons and Dragons. You help by giving story and character suggestions to the DM' },
-                        ...messages]
-            };
+            instances: [
+                {
+                    prompt: llmQuery
+                }
+            ],
+            parameters: {
+                sampleCount: 1
+            }
+        };
     
         try {
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+                    'Authorization': `Bearer ${GOOGLE_CLOUD_API_KEY}`,
+                    'Content-Type': 'application/json; charset=utf-8'
+                },
+                body: JSON.stringify(data)
+            });
+    
+            const responseData = await response.json();
+            // Assuming the response contains a base64 encoded image in the predictions array
+            const base64Image = responseData.predictions[0].bytesBase64Encoded;
+            return base64Image;
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
+
+      static async callChat(messages) {
+        const GOOGLE_CLOUD_API_KEY = game.settings.get(llmSettings.ID, llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-exp-1206:generateContent?key=${GOOGLE_CLOUD_API_KEY}`;
+    
+        // Adapt the messages to match Gemini's expected format
+        const data = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [{ text: 'You are a helpful and creative DM assistant for 5th Edition Dungeons and Dragons. You help by giving story and character suggestions to the DM' }]
+                },
+                ...messages.map(message => ({
+                    role: message.role === "user" ? "user" : "model",
+                    parts: [{ text: message.content }]
+                }))
+            ]
+        };
+    
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(data)
-                });
-            
+            });
+    
             const responseData = await response.json();
-            let message = responseData.choices[0].message.content;
+            // Extract the response text from Gemini's response
+            // This is a placeholder, you'll need to adjust based on the actual Gemini response format
+            const message = responseData.candidates[0].content.parts[0].text;
             return message;
         } catch (error) {
             console.error('Error:', error);
             return null;
         }
     }
-    else {
-        try {
-            const baseUrl = 'https://gptlibproxyserver.azurewebsites.net/api/callChat';
-            messages = JSON.stringify(messages);
-
-            const params = {
-                msg: messages,
-                pass: SECRET_KEY
-            }
-
-            console.log("What do my messages look like?", messages);
-            const queryString = Object.keys(params).map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`).join('&');
-            const urlWithParams = `${baseUrl}?${queryString}`;
-            // const encodedQuery = encodeURIComponent(llmQuery);
-            // const response = await fetch(`http://localhost:3000/img?msg=${llmQuery}`);
-            const response = await fetch(urlWithParams);
-            console.log(response);
-            if(!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            const data = await response.json();
-            return data;
-        }
-        catch(error) {
-            console.error('Fetch error:', error);
-        }
-    }
-  }
 
   static callPredetermined() {
     return this.elara;
@@ -272,7 +306,7 @@ class llmLib {
   }
 
   static helpfulAssistant = `
-  You are a helpful and creative dm assistant for 5th Edition Dungeons and Dragons. You help by providing descriptions and stat blocks for NPCs in the specified JSON format.  Output will include an NPC statblock, a short description that would be suitable for further GPT memories and image generation with Dall-E, a back story, items, attacks, spells and armor that may be relevent to the character (don't be afraid to add many), and any affiliations or relationships. You will only output the described attributes, without any fluff.
+  You are a helpful and creative dm assistant for 5th Edition Dungeons and Dragons. You help by providing descriptions and stat blocks for NPCs in the specified JSON format. Output will include an NPC statblock, a short description that would be suitable for further GPT memories and image generation with Dall-E, a back story, items, attacks, spells and armor that may be relevent to the character (don't be afraid to add many), and any affiliations or relationships. You will only output the described attributes, without any fluff.
 
 {
   "npc": {
@@ -397,7 +431,6 @@ class llmLib {
               "description": ""
           }]
       }
-
   },
   "description": {
       "dalle": "",
@@ -437,6 +470,8 @@ Hooks.on('renderSettingsConfig', (app, html, data) => {
     const apiKeyHint = game.i18n.localize(`CHAT-BOT.settings.${llmSettings.SETTINGS.API_KEY}.Hint`);
     const secretKeyName = game.i18n.localize(`CHAT-BOT.settings.${llmSettings.SETTINGS.SECRET_KEY}.Name`);
     const secretKeyHint = game.i18n.localize(`CHAT-BOT.settings.${llmSettings.SETTINGS.SECRET_KEY}.Hint`);
+    const googleCloudApiKeyName = game.i18n.localize(`CHAT-BOT.settings.${llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY}.Name`);
+    const googleCloudApiKeyHint = game.i18n.localize(`CHAT-BOT.settings.${llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY}.Hint`);
 
     // Identify where to insert your custom field, e.g., at the end of the form
     const form = html.find(`[data-category="llm-lib"]`);
@@ -460,9 +495,18 @@ Hooks.on('renderSettingsConfig', (app, html, data) => {
         <p class="notes">${secretKeyHint}</p>
     `;
 
+    const googleCloudApiKeyFormGroup = document.createElement('div');
+    googleCloudApiKeyFormGroup.classList.add('form-group');
+    googleCloudApiKeyFormGroup.innerHTML = `
+        <label>${googleCloudApiKeyName}:</label>
+        <input type="password" name="${llmSettings.ID}.${llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY}" value="${game.settings.get(llmSettings.ID, llmSettings.SETTINGS.GOOGLE_CLOUD_API_KEY)}" data-dtype="String">
+        <p class="notes">${googleCloudApiKeyHint}</p>
+    `;
+
     // Append your custom form group to the settings window
     form.append(apiKeyFormGroup);
     form.append(secretKeyFormGroup);
+    form.append(googleCloudApiKeyFormGroup);
 
     // Optionally, add an event listener to save the setting when the form is submitted
     // app.options.onSubmit = (e) => {
